@@ -16,19 +16,18 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.LinearLayout;
+import android.widget.Button;
 import android.widget.ListView;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import androidx.lifecycle.ViewModelProviders;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 
 import ch.heigvd.iict.sym_labo4.abstractactivies.BaseTemplateActivity;
 import ch.heigvd.iict.sym_labo4.adapters.ResultsAdapter;
+import ch.heigvd.iict.sym_labo4.utils.UUIDConstant;
 import ch.heigvd.iict.sym_labo4.viewmodels.BleOperationsViewModel;
 
 /**
@@ -65,6 +64,12 @@ public class BleActivity extends BaseTemplateActivity {
     private Handler handler = null;
     private boolean isScanning = false;
 
+    private Button temperature;
+    private TextView tempresult;
+
+    private Button nbButtonPressed;
+    private TextView nbButtonPressedValue;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -81,6 +86,10 @@ public class BleActivity extends BaseTemplateActivity {
         this.scanPanel = findViewById(R.id.ble_scan);
         this.scanResults = findViewById(R.id.ble_scanresults);
         this.emptyScanResults = findViewById(R.id.ble_scanresults_empty);
+        this.temperature = findViewById(R.id.temperature);
+        this.tempresult = findViewById(R.id.tempresult);
+        this.nbButtonPressed = findViewById(R.id.nbButtonPressed);
+        this.nbButtonPressedValue = findViewById(R.id.nbButtonPressedValue);
 
         //manage scanned item
         this.scanResultsAdapter = new ResultsAdapter(this);
@@ -102,10 +111,21 @@ public class BleActivity extends BaseTemplateActivity {
             });
         });
 
+        temperature.setOnClickListener(v -> bleViewModel.readTemperature());
+        nbButtonPressed.setOnClickListener(v -> bleViewModel.getNbButtonClicked());
+
         //ble events
         this.bleViewModel.isConnected().observe(this, (isConnected) -> {
             updateGui();
         });
+
+        this.bleViewModel.getDeviceTemp().observe(this, deviceTemp ->
+            this.tempresult.setText(String.valueOf(deviceTemp))
+        );
+
+        this.bleViewModel.getNbButtonClicked().observe(this, nbButtonClicked ->
+            this.nbButtonPressedValue.setText(String.valueOf(nbButtonClicked))
+        );
     }
 
     @Override
@@ -184,9 +204,8 @@ public class BleActivity extends BaseTemplateActivity {
             // Filter to get only the devices with SYM services
             // Source : https://www.programcreek.com/java-api-examples/index.php?api=android.bluetooth.le.ScanFilter
             List<ScanFilter> filterList = new ArrayList<>();
-            String uuid = "3c0a1000-281d-4b48-b2a7-f15579a1c38f";
             ScanFilter filter = new ScanFilter.Builder()
-                                              .setServiceUuid(ParcelUuid.fromString(uuid))
+                                              .setServiceUuid(new ParcelUuid(UUIDConstant.SYM_CUSTOM))
                                               .build();
             filterList.add(filter);
 

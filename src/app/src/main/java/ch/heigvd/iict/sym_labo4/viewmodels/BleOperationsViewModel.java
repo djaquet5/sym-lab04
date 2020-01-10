@@ -13,8 +13,10 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import ch.heigvd.iict.sym_labo4.utils.UUIDConstant;
 import no.nordicsemi.android.ble.BleManager;
 import no.nordicsemi.android.ble.BleManagerCallbacks;
+import no.nordicsemi.android.ble.data.Data;
 
 public class BleOperationsViewModel extends AndroidViewModel {
 
@@ -29,9 +31,20 @@ public class BleOperationsViewModel extends AndroidViewModel {
         return mIsConnected;
     }
 
-    //references to the Services and Characteristics of the SYM Pixl
+    //references to the UUIDConstant and Characteristics of the SYM Pixl
     private BluetoothGattService timeService = null, symService = null;
     private BluetoothGattCharacteristic currentTimeChar = null, integerChar = null, temperatureChar = null, buttonClickChar = null;
+
+    private final MutableLiveData<Float> deviceTemp = new MutableLiveData<>();
+    public MutableLiveData<Integer> nbButtonClicked = new MutableLiveData<>();
+
+    public MutableLiveData<Float> getDeviceTemp() {
+        return deviceTemp;
+    }
+
+    public MutableLiveData<Integer> getNbButtonClicked() {
+        return nbButtonClicked;
+    }
 
     public BleOperationsViewModel(Application application) {
         super(application);
@@ -169,9 +182,11 @@ public class BleOperationsViewModel extends AndroidViewModel {
                     - On en profitera aussi pour garder les références vers les différents services et
                       caractéristiques (déclarés en lignes 33 et 34)
                  */
+                timeService = gatt.getService(UUIDConstant.CURRENT_TIME);
+                symService = gatt.getService(UUIDConstant.SYM_CUSTOM);
 
                 //FIXME si tout est OK, on retourne true, sinon la librairie appelera la méthode onDeviceNotSupported()
-                return false;
+                return true;
             }
 
             @Override
@@ -203,7 +218,23 @@ public class BleOperationsViewModel extends AndroidViewModel {
                 des MutableLiveData
                 On placera des méthodes similaires pour les autres opérations...
             */
-            return false; //FIXME
+            readCharacteristic(temperatureChar)
+                    .with((device, data) -> {
+                        deviceTemp.postValue(data.getIntValue(Data.FORMAT_SINT16, 0) / 10.F);
+                    })
+                    .enqueue();
+
+            return true;
         }
+
+        public boolean readNbButton(){
+            readCharacteristic(buttonClickChar)
+                    .with((device, data) -> nbButtonClicked.postValue(data.getIntValue(Data.FORMAT_UINT32, 0)))
+                    .enqueue();
+
+            return true;
+        }
+
+
     }
 }
