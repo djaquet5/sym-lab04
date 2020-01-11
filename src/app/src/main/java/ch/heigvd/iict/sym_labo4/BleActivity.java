@@ -17,6 +17,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -67,8 +68,10 @@ public class BleActivity extends BaseTemplateActivity {
     private Button temperature;
     private TextView tempresult;
 
-    private Button nbButtonPressed;
     private TextView nbButtonPressedValue;
+
+    private EditText valueToSend;
+    private Button sendValue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,10 +89,12 @@ public class BleActivity extends BaseTemplateActivity {
         this.scanPanel = findViewById(R.id.ble_scan);
         this.scanResults = findViewById(R.id.ble_scanresults);
         this.emptyScanResults = findViewById(R.id.ble_scanresults_empty);
+
         this.temperature = findViewById(R.id.temperature);
         this.tempresult = findViewById(R.id.tempresult);
-        this.nbButtonPressed = findViewById(R.id.nbButtonPressed);
         this.nbButtonPressedValue = findViewById(R.id.nbButtonPressedValue);
+        this.valueToSend = findViewById(R.id.valueToSend);
+        this.sendValue = findViewById(R.id.sendValue);
 
         //manage scanned item
         this.scanResultsAdapter = new ResultsAdapter(this);
@@ -112,7 +117,12 @@ public class BleActivity extends BaseTemplateActivity {
         });
 
         temperature.setOnClickListener(v -> bleViewModel.readTemperature());
-        nbButtonPressed.setOnClickListener(v -> bleViewModel.getNbButtonClicked());
+
+        sendValue.setOnClickListener(v -> {
+            // We do not use the method Integer.parseUnsignedInt because it requires the API level 26
+            // and we currently are in API level 21 (according to Android Studio)
+            bleViewModel.sendValue(Integer.parseInt(valueToSend.getText().toString()));
+        });
 
         //ble events
         this.bleViewModel.isConnected().observe(this, (isConnected) -> {
@@ -120,11 +130,11 @@ public class BleActivity extends BaseTemplateActivity {
         });
 
         this.bleViewModel.getDeviceTemp().observe(this, deviceTemp ->
-            this.tempresult.setText(String.valueOf(deviceTemp))
+            this.tempresult.setText(deviceTemp + "°C")
         );
 
         this.bleViewModel.getNbButtonClicked().observe(this, nbButtonClicked ->
-            this.nbButtonPressedValue.setText(String.valueOf(nbButtonClicked))
+            this.nbButtonPressedValue.setText(nbButtonClicked.toString())
         );
     }
 

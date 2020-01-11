@@ -13,9 +13,12 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import java.nio.ByteBuffer;
+
 import ch.heigvd.iict.sym_labo4.utils.UUIDConstant;
 import no.nordicsemi.android.ble.BleManager;
 import no.nordicsemi.android.ble.BleManagerCallbacks;
+import no.nordicsemi.android.ble.callback.DataReceivedCallback;
 import no.nordicsemi.android.ble.data.Data;
 
 public class BleOperationsViewModel extends AndroidViewModel {
@@ -84,6 +87,11 @@ public class BleOperationsViewModel extends AndroidViewModel {
     public boolean readTemperature() {
         if(!isConnected().getValue() || temperatureChar == null) return false;
         return ble.readTemperature();
+    }
+
+    public boolean sendValue(int value) {
+        if(!isConnected().getValue() || integerChar == null) return false;
+        return ble.sendValue(value);
     }
 
     private BleManagerCallbacks bleManagerCallbacks = new BleManagerCallbacks() {
@@ -185,7 +193,17 @@ public class BleOperationsViewModel extends AndroidViewModel {
                 timeService = gatt.getService(UUIDConstant.CURRENT_TIME);
                 symService = gatt.getService(UUIDConstant.SYM_CUSTOM);
 
-                //FIXME si tout est OK, on retourne true, sinon la librairie appelera la méthode onDeviceNotSupported()
+                if (timeService == null || symService == null)
+                    return false;
+
+                currentTimeChar = timeService.getCharacteristic(UUIDConstant.CURRENT_TIME_CARAC);
+                integerChar = symService.getCharacteristic(UUIDConstant.SEND_INT);
+                temperatureChar = symService.getCharacteristic(UUIDConstant.GET_TEMPERATURE);
+                buttonClickChar = symService.getCharacteristic(UUIDConstant.BTN);
+
+                if (currentTimeChar == null || integerChar == null || temperatureChar == null || buttonClickChar == null)
+                    return false;
+
                 return true;
             }
 
@@ -197,6 +215,12 @@ public class BleOperationsViewModel extends AndroidViewModel {
                     Dans notre cas il s'agit de s'enregistrer pour recevoir les notifications proposées par certaines
                     caractéristiques, on en profitera aussi pour mettre en place les callbacks correspondants.
                  */
+                setNotificationCallback(buttonClickChar).with(new DataReceivedCallback() {
+                    @Override
+                    public void onDataReceived(@NonNull BluetoothDevice device, @NonNull Data data) {
+                        nbButtonClicked.setValue(data.getIntValue(Data.FORMAT_UINT8, 0));
+                    }
+                });
             }
 
             @Override
@@ -218,23 +242,16 @@ public class BleOperationsViewModel extends AndroidViewModel {
                 des MutableLiveData
                 On placera des méthodes similaires pour les autres opérations...
             */
-            readCharacteristic(temperatureChar)
-                    .with((device, data) -> {
-                        deviceTemp.postValue(data.getIntValue(Data.FORMAT_SINT16, 0) / 10.F);
-                    })
-                    .enqueue();
+            readCharacteristic(temperatureChar).with((device, data) ->
+                deviceTemp.postValue(data.getIntValue(Data.FORMAT_SINT16, 0) / 10.F)
+            ).enqueue();
 
             return true;
         }
 
-        public boolean readNbButton(){
-            readCharacteristic(buttonClickChar)
-                    .with((device, data) -> nbButtonClicked.postValue(data.getIntValue(Data.FORMAT_UINT32, 0)))
-                    .enqueue();
-
+        public boolean sendValue(int value) {
+            writeCharacteristic(integerChar, ByteBuffer.allocate(4).putInt(value).array());
             return true;
         }
-
-
     }
 }
