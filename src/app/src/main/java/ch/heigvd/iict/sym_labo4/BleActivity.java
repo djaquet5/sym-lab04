@@ -24,7 +24,9 @@ import android.widget.TextView;
 import androidx.lifecycle.ViewModelProviders;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Objects;
 
 import ch.heigvd.iict.sym_labo4.abstractactivies.BaseTemplateActivity;
 import ch.heigvd.iict.sym_labo4.adapters.ResultsAdapter;
@@ -73,6 +75,10 @@ public class BleActivity extends BaseTemplateActivity {
     private EditText valueToSend;
     private Button sendValue;
 
+    private TextView currentDeviceTime;
+
+    private Button setDeviceTime;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -92,9 +98,15 @@ public class BleActivity extends BaseTemplateActivity {
 
         this.temperature = findViewById(R.id.temperature);
         this.tempresult = findViewById(R.id.tempresult);
+
         this.nbButtonPressedValue = findViewById(R.id.nbButtonPressedValue);
+
         this.valueToSend = findViewById(R.id.valueToSend);
         this.sendValue = findViewById(R.id.sendValue);
+
+        this.currentDeviceTime = findViewById(R.id.currentDeviceTime);
+
+        this.setDeviceTime = findViewById(R.id.setDeviceTime);
 
         //manage scanned item
         this.scanResultsAdapter = new ResultsAdapter(this);
@@ -121,8 +133,14 @@ public class BleActivity extends BaseTemplateActivity {
         sendValue.setOnClickListener(v -> {
             // We do not use the method Integer.parseUnsignedInt because it requires the API level 26
             // and we currently are in API level 21 (according to Android Studio)
-            bleViewModel.sendValue(Integer.parseInt(valueToSend.getText().toString()));
+            try {
+                bleViewModel.sendValue(Integer.parseInt(valueToSend.getText().toString()));
+            } catch (NumberFormatException e) {
+                Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+            }
         });
+
+        setDeviceTime.setOnClickListener(v -> bleViewModel.setTime());
 
         //ble events
         this.bleViewModel.isConnected().observe(this, (isConnected) -> {
@@ -135,6 +153,10 @@ public class BleActivity extends BaseTemplateActivity {
 
         this.bleViewModel.getNbButtonClicked().observe(this, nbButtonClicked ->
             this.nbButtonPressedValue.setText(nbButtonClicked.toString())
+        );
+
+        this.bleViewModel.getCurrentTime().observe(this, currentTime ->
+            this.currentDeviceTime.setText(currentTime)
         );
     }
 
