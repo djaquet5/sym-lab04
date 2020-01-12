@@ -1,1 +1,7 @@
 **.idea/*
+
+**build.gradle/
+
+
+src/.idea/*
+src/build.gradle/*
