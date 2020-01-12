@@ -18,4 +18,6 @@
     <string name="ble_sendvalue_title">Envoi de valeur</string>
     <string name="ble_sendvalue_send">Send</string>
 
+    <string name="ble_get_temperature">Get temperature</string>
+
 </resources>
