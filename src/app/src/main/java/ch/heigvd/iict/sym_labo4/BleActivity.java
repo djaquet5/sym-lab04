@@ -4,25 +4,33 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.ParcelUuid;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.LinearLayout;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import androidx.lifecycle.ViewModelProviders;
 
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Objects;
+
 import ch.heigvd.iict.sym_labo4.abstractactivies.BaseTemplateActivity;
 import ch.heigvd.iict.sym_labo4.adapters.ResultsAdapter;
+import ch.heigvd.iict.sym_labo4.utils.UUIDConstant;
 import ch.heigvd.iict.sym_labo4.viewmodels.BleOperationsViewModel;
 
 /**
@@ -59,6 +67,18 @@ public class BleActivity extends BaseTemplateActivity {
     private Handler handler = null;
     private boolean isScanning = false;
 
+    private Button temperature;
+    private TextView tempresult;
+
+    private TextView nbButtonPressedValue;
+
+    private EditText valueToSend;
+    private Button sendValue;
+
+    private TextView currentDeviceTime;
+
+    private Button setDeviceTime;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -75,6 +95,18 @@ public class BleActivity extends BaseTemplateActivity {
         this.scanPanel = findViewById(R.id.ble_scan);
         this.scanResults = findViewById(R.id.ble_scanresults);
         this.emptyScanResults = findViewById(R.id.ble_scanresults_empty);
+
+        this.temperature = findViewById(R.id.temperature);
+        this.tempresult = findViewById(R.id.tempresult);
+
+        this.nbButtonPressedValue = findViewById(R.id.nbButtonPressedValue);
+
+        this.valueToSend = findViewById(R.id.valueToSend);
+        this.sendValue = findViewById(R.id.sendValue);
+
+        this.currentDeviceTime = findViewById(R.id.currentDeviceTime);
+
+        this.setDeviceTime = findViewById(R.id.setDeviceTime);
 
         //manage scanned item
         this.scanResultsAdapter = new ResultsAdapter(this);
@@ -96,10 +128,36 @@ public class BleActivity extends BaseTemplateActivity {
             });
         });
 
+        temperature.setOnClickListener(v -> bleViewModel.readTemperature());
+
+        sendValue.setOnClickListener(v -> {
+            // We do not use the method Integer.parseUnsignedInt because it requires the API level 26
+            // and we currently are in API level 21 (according to Android Studio)
+            try {
+                bleViewModel.sendValue(Integer.parseInt(valueToSend.getText().toString()));
+            } catch (NumberFormatException e) {
+                Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+            }
+        });
+
+        setDeviceTime.setOnClickListener(v -> bleViewModel.setTime());
+
         //ble events
         this.bleViewModel.isConnected().observe(this, (isConnected) -> {
             updateGui();
         });
+
+        this.bleViewModel.getDeviceTemp().observe(this, deviceTemp ->
+            this.tempresult.setText(deviceTemp + "°C")
+        );
+
+        this.bleViewModel.getNbButtonClicked().observe(this, nbButtonClicked ->
+            this.nbButtonPressedValue.setText(nbButtonClicked.toString())
+        );
+
+        this.bleViewModel.getCurrentTime().observe(this, currentTime ->
+            this.currentDeviceTime.setText(currentTime)
+        );
     }
 
     @Override
@@ -175,15 +233,18 @@ public class BleActivity extends BaseTemplateActivity {
             builderScanSettings.setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY);
             builderScanSettings.setReportDelay(0);
 
-            //we scan for any BLE device
-            //we don't filter them based on advertised services...
-            //TODO ajouter un filtre pour n'afficher que les devices proposant
-            // le service "SYM" (UUID: "3c0a1000-281d-4b48-b2a7-f15579a1c38f")
+            // Filter to get only the devices with SYM services
+            // Source : https://www.programcreek.com/java-api-examples/index.php?api=android.bluetooth.le.ScanFilter
+            List<ScanFilter> filterList = new ArrayList<>();
+            ScanFilter filter = new ScanFilter.Builder()
+                                              .setServiceUuid(new ParcelUuid(UUIDConstant.SYM_CUSTOM))
+                                              .build();
+            filterList.add(filter);
 
             //reset display
             scanResultsAdapter.clear();
 
-            bluetoothScanner.startScan(null, builderScanSettings.build(), leScanCallback);
+            bluetoothScanner.startScan(filterList, builderScanSettings.build(), leScanCallback);
             Log.d(TAG,"Start scanning...");
             isScanning = true;
 
